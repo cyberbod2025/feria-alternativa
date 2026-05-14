@@ -12,34 +12,28 @@ export default function Handoff() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Expected handoff format from SASE: /auth/handoff?sase_token=<JWT_OR_SIGNED_TOKEN>
     const saseToken = searchParams.get('sase_token') || searchParams.get('token');
-    const token = saseToken;
 
-    if (!token) {
+    if (!saseToken) {
       setError('Token de acceso no proporcionado.');
       return;
     }
 
     try {
-      // In a real scenario, this would be an API call to validate the token.
-      // Here we simulate decoding a simple base64 JSON payload for testing purposes.
-      // SASE payload: { role: 'teacher' | 'admin' | 'staff', module: 'feria' }
-      
-      let payload;
-      try {
-        const base64Url = token.split('.')[1];
-        if(!base64Url) throw new Error("Invalid token format");
-        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-        const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
-            return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-        }).join(''));
-        payload = JSON.parse(jsonPayload);
-      } catch (e) {
-        // Fallback for simple testing during dev without real JWTs
-        console.warn("Could not decode as JWT, attempting direct JSON parse if not encoded, or using fallback");
-        payload = { role: 'teacher', module: 'feria' }; // Fake fallback for dev
+      const parts = saseToken.split('.');
+
+      // SASE token format: payload.signature (exactly 2 parts)
+      if (parts.length !== 2) {
+        setError('Token inválido.');
+        return;
       }
+
+      const base64Url = parts[0];
+      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+      const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+          return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+      }).join(''));
+      const payload = JSON.parse(jsonPayload);
 
       const { role, module } = payload;
 
@@ -53,8 +47,7 @@ export default function Handoff() {
          return;
       }
 
-      // Login
-      loginSase(token, role as Role);
+      loginSase(saseToken, role as Role);
       navigate('/docente');
 
     } catch (err) {

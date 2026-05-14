@@ -12,8 +12,9 @@ export default function Handoff() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Expected handoff format from SASE: /auth/handoff?token=JWT_OR_SIGNED_TOKEN
-    const token = searchParams.get('token');
+    // Expected handoff format from SASE: /auth/handoff?sase_token=<JWT_OR_SIGNED_TOKEN>
+    const saseToken = searchParams.get('sase_token') || searchParams.get('token');
+    const token = saseToken;
 
     if (!token) {
       setError('Token de acceso no proporcionado.');

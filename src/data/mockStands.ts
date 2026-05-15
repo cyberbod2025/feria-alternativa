@@ -14,7 +14,7 @@ export const mockStands: Stand[] = [
     status: "active",
     currentVisitors: 2,
     totalVisitors: 45,
-    totalPoints: 1250,
+    totalPoints: 0,
     qrSlug: "vol-piramide-prisma",
     trivia: [
       {
@@ -36,7 +36,7 @@ export const mockStands: Stand[] = [
     status: "recommended",
     currentVisitors: 0,
     totalVisitors: 30,
-    totalPoints: 850,
+    totalPoints: 0,
     qrSlug: "angulos-triangulo",
     trivia: [
       {

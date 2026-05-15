@@ -31,29 +31,41 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-transparent flex flex-col items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        <Link to="/" className="inline-flex items-center text-sm font-bold text-cyan-400 hover:text-cyan-300 mb-6 transition-colors uppercase tracking-wider">
+    <div className="min-h-screen bg-circus-night flex flex-col items-center justify-center p-4 relative overflow-hidden">
+      {/* Decorative Lights */}
+      <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-circus-red via-circus-yellow to-circus-blue opacity-50"></div>
+      
+      <div className="w-full max-w-md relative z-10">
+        <Link to="/" className="inline-flex items-center text-sm font-black text-circus-yellow hover:text-white mb-8 transition-colors uppercase tracking-[0.2em]">
           <ChevronLeft className="w-4 h-4 mr-1" />
-          Volver a inicio
+          Regresar a la entrada
         </Link>
-        <Card className="border-white/10 bg-slate-900/60 backdrop-blur-2xl shadow-2xl shadow-indigo-500/20 ring-1 ring-white/10">
-          <CardHeader className="space-y-2 pb-8">
-            <CardTitle className="text-2xl font-bold text-white uppercase tracking-tight">Registro de Visitante</CardTitle>
-            <CardDescription className="text-base text-slate-400">
-              Ingresa tus datos para comenzar el recorrido interactivo por la feria.
+        
+        <Card className="border-2 border-circus-ticket/20 bg-slate-900/80 backdrop-blur-3xl shadow-2xl relative overflow-hidden">
+          {/* Ticket notches */}
+          <div className="absolute -left-4 top-1/2 -translate-y-1/2 w-8 h-8 bg-circus-night border-r-2 border-circus-ticket/20 rounded-full z-20"></div>
+          <div className="absolute -right-4 top-1/2 -translate-y-1/2 w-8 h-8 bg-circus-night border-l-2 border-circus-ticket/20 rounded-full z-20"></div>
+          
+          <CardHeader className="space-y-1 pb-8 text-center border-b-2 border-dashed border-circus-ticket/10 mx-6">
+            <div className="mx-auto w-16 h-16 bg-circus-red/10 border-2 border-circus-red/30 rounded-full flex items-center justify-center mb-4">
+              <Users className="w-8 h-8 text-circus-red" />
+            </div>
+            <CardTitle className="text-3xl font-black text-white uppercase tracking-tighter italic">Registro de <span className="text-circus-yellow">Espectador</span></CardTitle>
+            <CardDescription className="text-sm text-slate-400 font-medium uppercase tracking-wider">
+              Tu pase para la gran feria de la ciencia
             </CardDescription>
           </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-5">
+          
+          <CardContent className="pt-8 px-8">
+            <form onSubmit={handleSubmit} className="space-y-6">
               <div className="space-y-2">
-                <label className="text-xs font-bold text-cyan-300 uppercase tracking-wider" htmlFor="name">Nombre</label>
+                <label className="text-[10px] font-black text-circus-yellow uppercase tracking-[0.2em] ml-1" htmlFor="name">Nombre de Pila</label>
                 <div className="relative">
-                  <User className="absolute left-3 top-3 h-5 w-5 text-slate-400" />
+                  <User className="absolute left-4 top-3.5 h-5 w-5 text-slate-500" />
                   <input
                     id="name"
                     type="text"
-                    className="w-full h-11 pl-10 rounded-xl border border-white/10 bg-white/5 px-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:border-transparent transition-all"
+                    className="w-full h-12 pl-12 rounded-2xl border-2 border-white/5 bg-white/5 px-4 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-circus-yellow/50 transition-all font-bold"
                     placeholder="Ej. Ana"
                     value={name}
                     onChange={(e) => {
@@ -62,15 +74,15 @@ export default function Login() {
                     }}
                   />
                 </div>
-                {errors.name && <p className="text-sm text-rose-400 font-medium">{errors.name}</p>}
+                {errors.name && <p className="text-[10px] text-circus-red font-black uppercase tracking-wider ml-1 mt-1">{errors.name}</p>}
               </div>
 
               <div className="space-y-2">
-                <label className="text-xs font-bold text-cyan-300 uppercase tracking-wider" htmlFor="lastName">Apellido</label>
+                <label className="text-[10px] font-black text-circus-yellow uppercase tracking-[0.2em] ml-1" htmlFor="lastName">Apellido Paterno</label>
                 <input
                   id="lastName"
                   type="text"
-                  className="w-full h-11 rounded-xl border border-white/10 bg-white/5 px-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:border-transparent transition-all"
+                  className="w-full h-12 rounded-2xl border-2 border-white/5 bg-white/5 px-4 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-circus-yellow/50 transition-all font-bold"
                   placeholder="Ej. García"
                   value={lastName}
                   onChange={(e) => {
@@ -78,33 +90,36 @@ export default function Login() {
                     if (errors.lastName) setErrors(prev => ({ ...prev, lastName: '' }));
                   }}
                 />
-                {errors.lastName && <p className="text-sm text-rose-400 font-medium">{errors.lastName}</p>}
+                {errors.lastName && <p className="text-[10px] text-circus-red font-black uppercase tracking-wider ml-1 mt-1">{errors.lastName}</p>}
               </div>
 
               <div className="space-y-2">
-                <label className="text-xs font-bold text-cyan-300 uppercase tracking-wider" htmlFor="group">Grupo / Procedencia</label>
-                <div className="relative">
-                  <Users className="absolute left-3 top-3 h-5 w-5 text-slate-400" />
-                  <input
-                    id="group"
-                    type="text"
-                    className="w-full h-11 pl-10 rounded-xl border border-white/10 bg-white/5 px-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:border-transparent transition-all"
-                    placeholder="Ej. 3A, Público General"
-                    value={group}
-                    onChange={(e) => {
-                      setGroup(e.target.value);
-                      if (errors.group) setErrors(prev => ({ ...prev, group: '' }));
-                    }}
-                  />
-                </div>
-                {errors.group && <p className="text-sm text-rose-400 font-medium">{errors.group}</p>}
+                <label className="text-[10px] font-black text-circus-yellow uppercase tracking-[0.2em] ml-1" htmlFor="group">Grado y Sección / Grupo</label>
+                <input
+                  id="group"
+                  type="text"
+                  className="w-full h-12 rounded-2xl border-2 border-white/5 bg-white/5 px-4 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-circus-yellow/50 transition-all font-bold"
+                  placeholder="Ej. 3A, Público"
+                  value={group}
+                  onChange={(e) => {
+                    setGroup(e.target.value);
+                    if (errors.group) setErrors(prev => ({ ...prev, group: '' }));
+                  }}
+                />
+                {errors.group && <p className="text-[10px] text-circus-red font-black uppercase tracking-wider ml-1 mt-1">{errors.group}</p>}
               </div>
 
-              <Button type="submit" className="w-full mt-2 bg-indigo-600 text-white font-bold hover:bg-indigo-500 shadow-[0_0_20px_-5px_rgba(99,102,241,0.5)]" size="lg">
-                Ingresar a la Feria
+              <Button type="submit" className="w-full h-14 bg-circus-blue text-white font-black hover:bg-circus-blue/90 shadow-[0_10px_20px_-10px_rgba(37,99,235,0.5)] rounded-2xl uppercase tracking-[0.2em] text-sm transform active:scale-[0.98] transition-all">
+                Entrar a la Carpa
               </Button>
             </form>
           </CardContent>
+          
+          <CardFooter className="pb-8 justify-center">
+             <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest text-center max-w-[200px]">
+               Al ingresar aceptas el reglamento de convivencia de la feria.
+             </p>
+          </CardFooter>
         </Card>
       </div>
     </div>

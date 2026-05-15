@@ -17,4 +17,37 @@
   --color-luminous-danger: #EF4444;
   --color-luminous-warning: #F59E0B;
   --color-luminous-success: #22C55E;
+
+  /* Circus Scientific Theme */
+  --color-circus-red: #EF4444;
+  --color-circus-yellow: #FACC15;
+  --color-circus-blue: #2563EB;
+  --color-circus-lavender: #A78BFA;
+  --color-circus-cyan: #67E8F9;
+  --color-circus-night: #0B0F1A;
+  --color-circus-ticket: #FFF7E6;
 }
+
+@layer utilities {
+  .circus-tent-gradient {
+    background: repeating-linear-gradient(
+      45deg,
+      #EF4444,
+      #EF4444 40px,
+      #FFF7E6 40px,
+      #FFF7E6 80px
+    );
+  }
+
+  .circus-border {
+    border: 4px solid #FACC15;
+    box-shadow: 0 0 15px #FACC15, inset 0 0 10px #FACC15;
+  }
+
+  .ticket-cut {
+    mask-image: radial-gradient(circle at 0 50%, transparent 12px, black 13px),
+                radial-gradient(circle at 100% 50%, transparent 12px, black 13px);
+    mask-composite: intersect;
+  }
+}
+

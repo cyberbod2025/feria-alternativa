@@ -94,7 +94,7 @@ export default function StudentLayout() {
       {/* Top Header for Desktop */}
       <header className="hidden md:flex fixed top-0 w-full h-16 bg-slate-900/40 backdrop-blur-xl border-b border-white/10 z-50 items-center justify-between px-6">
         <div className="flex items-center gap-2 text-cyan-400 font-bold text-xl uppercase tracking-tight">
-          Feria de Ciencias
+          Circo Científico Escolar
         </div>
         <nav className="flex items-center gap-6">
           {navItems.map((item) => (
@@ -125,6 +125,9 @@ export default function StudentLayout() {
         <div className="md:hidden flex justify-between items-center bg-slate-900/60 backdrop-blur-xl rounded-2xl p-4 border border-white/10 mb-4">
           <div className="text-sm font-bold text-slate-300 uppercase tracking-widest">{session.group}</div>
           <EventTimerDisplay />
+        </div>
+        <div className="text-[10px] text-slate-500 text-center font-medium">
+          Tu progreso se guarda en este dispositivo.
         </div>
         <Outlet />
       </main>

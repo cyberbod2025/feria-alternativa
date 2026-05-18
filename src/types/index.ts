@@ -4,6 +4,8 @@ export type Zone = 'Norte' | 'Sur' | 'Este' | 'Oeste' | 'Centro';
 
 export type StandStatus = 'active' | 'inactive' | 'saturated' | 'recommended' | 'moderate';
 
+export type ConnectionStatus = 'real' | 'demo' | 'offline';
+
 export interface Stand {
   id: string;
   name: string;
@@ -17,7 +19,7 @@ export interface Stand {
   currentVisitors: number;
   totalVisitors: number;
   totalPoints?: number;
-  qrSlug: string; // Unique identifier for generating QR codes for each stand
+  qrSlug: string;
   trivia?: TriviaQuestion[];
 }
 
@@ -42,4 +44,10 @@ export interface StandProgress {
   visitedAt?: number;
   arrivedAt?: number;
   score?: number;
+}
+
+export interface SessionResponse {
+  valid: boolean;
+  session?: UserSession;
+  error?: string;
 }

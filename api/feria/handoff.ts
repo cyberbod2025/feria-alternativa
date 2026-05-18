@@ -9,8 +9,13 @@ function json(res: ServerResponse, status: number, data: unknown) {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Credentials': 'true',
   });
   res.end(body);
+}
+
+function connectionMode() {
+  return process.env.FERIA_SHARED_SECRET ? 'real' : 'demo';
 }
 
 export default async function handler(req: IncomingMessage, res: ServerResponse) {
@@ -19,13 +24,14 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'POST, OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type',
+      'Access-Control-Allow-Credentials': 'true',
     });
     res.end();
     return;
   }
 
   if (req.method !== 'POST') {
-    json(res, 405, { ok: false, error: 'Método no permitido' });
+    json(res, 405, { ok: false, error: 'Metodo no permitido' });
     return;
   }
 
@@ -37,7 +43,7 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
     const parsed = JSON.parse(body);
     token = parsed.token;
   } catch {
-    json(res, 400, { ok: false, error: 'Cuerpo inválido' });
+    json(res, 400, { ok: false, error: 'Cuerpo invalido' });
     return;
   }
 
@@ -48,7 +54,7 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
 
   const result = verifySaseToken(token);
   if (!result.valid || !result.payload) {
-    json(res, 401, { ok: false, error: result.error });
+    json(res, 401, { ok: false, mode: connectionMode(), error: result.error });
     return;
   }
 
@@ -73,11 +79,12 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Credentials': 'true',
   });
 
   res.end(JSON.stringify({
     ok: true,
-    mode: process.env.FERIA_SESSION_SECRET ? 'real' : 'demo',
+    mode: connectionMode(),
     session: {
       sub: session.sub,
       role: session.role,

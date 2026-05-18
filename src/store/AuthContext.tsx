@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { UserSession, Role, ConnectionStatus } from '../types';
+import { UserSession, ConnectionStatus, SessionResponse } from '../types';
 
 const API_BASE = '/api/feria';
 
@@ -14,15 +14,37 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+function readStoredStudentSession(): UserSession | null {
+  const saved = sessionStorage.getItem('feria_session');
+  if (!saved) return null;
+
+  try {
+    const parsed = JSON.parse(saved) as Partial<UserSession>;
+    if (
+      parsed.role === 'student' &&
+      typeof parsed.name === 'string' &&
+      typeof parsed.lastName === 'string' &&
+      typeof parsed.group === 'string' &&
+      typeof parsed.expiresAt === 'number' &&
+      parsed.expiresAt > Date.now()
+    ) {
+      return parsed as UserSession;
+    }
+  } catch { /* ignore corrupt data */ }
+
+  sessionStorage.removeItem('feria_session');
+  return null;
+}
+
 async function checkConnection(): Promise<ConnectionStatus> {
   try {
     const res = await fetch(`${API_BASE}/session`, {
       credentials: 'include',
       signal: AbortSignal.timeout(3000),
     });
-    if (res.ok) return 'real';
-    const data = await res.json();
-    return data.mode === 'offline' ? 'offline' : 'demo';
+    const data: SessionResponse = await res.json().catch(() => ({ ok: false }));
+    if (!res.ok || !data.ok) return data.mode === 'demo' ? 'demo' : 'offline';
+    return data.mode === 'real' ? 'real' : 'demo';
   } catch {
     const hasSupabase = Boolean(
       (import.meta as any).env?.VITE_SUPABASE_URL &&
@@ -33,27 +55,14 @@ async function checkConnection(): Promise<ConnectionStatus> {
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [session, setSession] = useState<UserSession | null>(() => {
-    const saved = sessionStorage.getItem('feria_session');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved) as UserSession;
-        if (parsed.expiresAt > Date.now()) {
-          return parsed;
-        }
-      } catch { /* ignore corrupt data */ }
-      sessionStorage.removeItem('feria_session');
-    }
-    return null;
-  });
-
+  const [session, setSession] = useState<UserSession | null>(() => readStoredStudentSession());
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('offline');
 
   useEffect(() => {
     checkConnection().then(setConnectionStatus);
   }, []);
 
-  // Hydrate session from backend on mount if cookie exists
+  // Handoff sessions are trusted only after the backend validates the HttpOnly cookie.
   useEffect(() => {
     (async () => {
       try {
@@ -61,19 +70,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           credentials: 'include',
           signal: AbortSignal.timeout(5000),
         });
-        const data = await res.json();
-        if (data.ok && data.session) {
+        const data: SessionResponse = await res.json();
+        if (res.ok && data.ok && data.session) {
           setSession(data.session);
-          setConnectionStatus('real');
+          setConnectionStatus(data.mode === 'real' ? 'real' : 'demo');
+          return;
         }
+        setSession((current) => current?.role === 'student' ? current : null);
       } catch {
-        // No backend session — keep local session or show offline
+        setSession((current) => current?.role === 'student' ? current : null);
       }
     })();
   }, []);
 
   useEffect(() => {
-    if (session) {
+    if (session?.role === 'student') {
       sessionStorage.setItem('feria_session', JSON.stringify(session));
     } else {
       sessionStorage.removeItem('feria_session');
@@ -110,15 +121,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         credentials: 'include',
         signal: AbortSignal.timeout(5000),
       });
-      const data = await res.json();
-      if (data.ok && data.session) {
+      const data: SessionResponse = await res.json();
+      if (res.ok && data.ok && data.session) {
         setSession(data.session);
         setConnectionStatus(data.mode === 'real' ? 'real' : 'demo');
       } else {
-        setSession(null);
-        setConnectionStatus('offline');
+        setSession((current) => current?.role === 'student' ? current : null);
+        setConnectionStatus(data.mode === 'demo' ? 'demo' : 'offline');
       }
     } catch {
+      setSession((current) => current?.role === 'student' ? current : null);
       setConnectionStatus(
         Boolean(
           (import.meta as any).env?.VITE_SUPABASE_URL &&

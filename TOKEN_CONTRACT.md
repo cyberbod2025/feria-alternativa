@@ -14,12 +14,12 @@ Este documento especifica el formato exacto que SASE debe producir.
 ## Endpoint
 
 ```
-GET /#/auth/handoff?token=<JWT>
+GET /#/auth/handoff?sase_token=<JWT>
 ```
 
 Ejemplo:
 ```
-https://feria-alternativa.vercel.app/#/auth/handoff?token=eyJhbGciOiJIUzI1NiJ9.eyJyb2xlIjoidGVhY2hlciIsIm1vZHVsZSI6ImZlcmlhIn0.abc123signature
+https://feria-alternativa.vercel.app/#/auth/handoff?sase_token=eyJhbGciOiJIUzI1NiJ9.eyJyb2xlIjoidGVhY2hlciIsIm1vZHVsZSI6ImZlcmlhIiwic3ViIjoiMTIzIn0.abc123signature
 ```
 
 ---
@@ -41,6 +41,7 @@ https://feria-alternativa.vercel.app/#/auth/handoff?token=eyJhbGciOiJIUzI1NiJ9.e
 
 ```json
 {
+  "sub": "uuid-del-usuario",
   "role": "teacher",
   "module": "feria",
   "name": "Juan",
@@ -53,13 +54,14 @@ https://feria-alternativa.vercel.app/#/auth/handoff?token=eyJhbGciOiJIUzI1NiJ9.e
 
 | Claim | Tipo | Requerido | Descripción |
 |-------|------|-----------|-------------|
+| `sub` | string | sí | Identificador único del usuario en SASE |
 | `role` | string | sí | `"teacher"` \| `"admin"` \| `"staff"` |
 | `module` | string | sí | **Debe ser `"feria"`** — cualquier otro valor es rechazado |
 | `name` | string | no | Nombre del operador (se muestra en el panel) |
 | `lastName` | string | no | Apellido del operador |
 | `group` | string | no | Grupo asignado (visible en el panel) |
-| `exp` | number (Unix) | no | Expiración en segundos desde epoch. Si se omite, no expira |
-| `iat` | number (Unix) | no | Emitido en. Sin efecto en validación |
+| `exp` | number (Unix) | sí | Expiración en segundos desde epoch |
+| `iat` | number (Unix) | no | Emitido en. Si está en el futuro, el token se rechaza |
 
 ### Signature
 
@@ -71,14 +73,16 @@ https://feria-alternativa.vercel.app/#/auth/handoff?token=eyJhbGciOiJIUzI1NiJ9.e
 
 ## Validación del lado de Feria Alternativa
 
-El backend (`server.ts`) ejecuta esta secuencia:
+El endpoint `POST /api/feria/handoff` (Vercel Function) ejecuta esta secuencia:
 
 1. **Formato:** ¿Tiene 3 segmentos? Si no → `401 "Formato de token inválido"`
-2. **Module:** ¿`payload.module === "feria"`? Si no → `401 "El token no corresponde al módulo Feria"`
-3. **Role:** ¿`payload.role in ("teacher","admin","staff")`? Si no → `401 "Rol no autorizado para el panel docente"`
-4. **Exp:** ¿`payload.exp` es futuro (o no está presente)? Si expiró → `401 "El token ha expirado"`
-5. **Signature:** Si `FERIA_SHARED_SECRET` está configurado, verifica HMAC-SHA256. Si no coincide → `401 "Firma del token inválida"`
-6. **Si no hay `FERIA_SHARED_SECRET` configurado**, la firma NO se verifica (modo demo). Esto permite desarrollo sin compartir secretos.
+2. **Sub:** ¿`payload.sub` es un string no vacío? Si no → `401 "Token sin identificador de usuario (sub)"`
+3. **Module:** ¿`payload.module === "feria"`? Si no → `401 "El token no corresponde al módulo Feria"`
+4. **Role:** ¿`payload.role in ("teacher","admin","staff")`? Si no → `401 "Rol no autorizado para el panel docente"`
+5. **Exp:** ¿`payload.exp * 1000 > Date.now()`? Si expiró → `401 "El token ha expirado"`
+6. **Iat:** ¿`payload.iat * 1000 <= Date.now()`? Si está en futuro → `401 "El token tiene un iat en el futuro"`
+7. **Signature:** Si `FERIA_SHARED_SECRET` está configurado, verifica HMAC-SHA256. Si no coincide → `401 "Firma del token inválida"`
+8. **Si no hay `FERIA_SHARED_SECRET` configurado**, la firma NO se verifica (modo demo). Esto permite desarrollo sin compartir secretos.
 
 ---
 
@@ -88,10 +92,12 @@ El backend (`server.ts`) ejecuta esta secuencia:
 
 ```json
 {
-  "valid": true,
+  "ok": true,
+  "mode": "real",
   "session": {
-    "token": "uuid-de-sesion-interno",
+    "sub": "uuid-del-usuario",
     "role": "teacher",
+    "module": "feria",
     "name": "Juan",
     "lastName": "Pérez",
     "group": "3B",
@@ -100,11 +106,14 @@ El backend (`server.ts`) ejecuta esta secuencia:
 }
 ```
 
+- La sesión viaja en una cookie `feria_session` HttpOnly, Secure, SameSite=Lax, cifrada con AES-256-GCM.
+- El cliente nunca ve el token interno. El campo `sub` identifica al usuario.
+
 ### Error (401)
 
 ```json
 {
-  "valid": false,
+  "ok": false,
   "error": "El token ha expirado"
 }
 ```
@@ -116,6 +125,7 @@ El backend (`server.ts`) ejecuta esta secuencia:
 | Variable | Propósito | Ejemplo |
 |----------|-----------|---------|
 | `FERIA_SHARED_SECRET` | Clave HMAC para verificar firma del token (opcional en demo) | `"mi-secreto-compartido"` |
+| `FERIA_SESSION_SECRET` | Clave AES-256-GCM para cifrar cookie de sesión | `"otro-secreto-para-session"` |
 | `VITE_SUPABASE_URL` | URL del proyecto Supabase compartido | `https://uvnetpnjinxzhggoqmwz.supabase.co` |
 | `VITE_SUPABASE_ANON_KEY` | Anon key del proyecto Supabase | `sb_publishable_...` |
 
@@ -125,5 +135,6 @@ El backend (`server.ts`) ejecuta esta secuencia:
 
 - Feria Alternativa **nunca asigna roles en el cliente**. Todo token se valida contra el backend.
 - Sin `FERIA_SHARED_SECRET`, la validación de firma se salta (modo demo / desarrollo local).
+- Sin `FERIA_SESSION_SECRET`, se usa `FERIA_SHARED_SECRET` como fallback para cifrar la cookie.
 - En modo demo, el badge muestra "Demo" en lugar de "Real".
-- En producción (Vercel), el backend Express NO corre — los endpoints `/api/feria/*` deben implementarse como serverless functions o el handoff se rechaza con "servidor no disponible".
+- Los endpoints `/api/feria/*` son Vercel Functions. En desarrollo local, `server.ts` replica los mismos endpoints usando la lógica compartida en `api/_shared/`.

@@ -31,8 +31,9 @@ export interface TriviaQuestion {
 }
 
 export interface UserSession {
-  token: string;
+  sub?: string;
   role: Role;
+  module?: string;
   name: string;
   lastName: string;
   group: string;

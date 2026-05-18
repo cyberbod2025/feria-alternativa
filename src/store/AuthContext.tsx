@@ -1,7 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { UserSession, Role, ConnectionStatus } from '../types';
 
-// API base — same origin in dev (Express) or production (serverless/static fallback)
 const API_BASE = '/api/feria';
 
 interface AuthContextType {
@@ -18,10 +17,12 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 async function checkConnection(): Promise<ConnectionStatus> {
   try {
     const res = await fetch(`${API_BASE}/session`, {
+      credentials: 'include',
       signal: AbortSignal.timeout(3000),
     });
     if (res.ok) return 'real';
-    return 'demo';
+    const data = await res.json();
+    return data.mode === 'offline' ? 'offline' : 'demo';
   } catch {
     const hasSupabase = Boolean(
       (import.meta as any).env?.VITE_SUPABASE_URL &&
@@ -52,6 +53,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     checkConnection().then(setConnectionStatus);
   }, []);
 
+  // Hydrate session from backend on mount if cookie exists
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch(`${API_BASE}/session`, {
+          credentials: 'include',
+          signal: AbortSignal.timeout(5000),
+        });
+        const data = await res.json();
+        if (data.ok && data.session) {
+          setSession(data.session);
+          setConnectionStatus('real');
+        }
+      } catch {
+        // No backend session — keep local session or show offline
+      }
+    })();
+  }, []);
+
   useEffect(() => {
     if (session) {
       sessionStorage.setItem('feria_session', JSON.stringify(session));
@@ -62,7 +82,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = useCallback((name: string, lastName: string, group: string) => {
     setSession({
-      token: Math.random().toString(36).substring(2),
       role: 'student',
       name,
       lastName,
@@ -76,34 +95,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const logout = useCallback(async () => {
-    // Attempt server-side logout if we have a real session token
-    const current = session;
     setSession(null);
-    if (current && current.token.length > 20) {
-      try {
-        await fetch(`${API_BASE}/logout`, {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${current.token}` },
-        });
-      } catch { /* server may be unreachable, local clear is sufficient */ }
-    }
-  }, [session]);
+    try {
+      await fetch(`${API_BASE}/logout`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+    } catch { /* server unreachable, local clear is sufficient */ }
+  }, []);
 
   const refreshSession = useCallback(async () => {
-    const current = session;
-    if (!current || current.token.length <= 20) return;
-
     try {
       const res = await fetch(`${API_BASE}/session`, {
-        headers: { Authorization: `Bearer ${current.token}` },
+        credentials: 'include',
         signal: AbortSignal.timeout(5000),
       });
       const data = await res.json();
-      if (data.valid && data.session) {
+      if (data.ok && data.session) {
         setSession(data.session);
-        setConnectionStatus('real');
+        setConnectionStatus(data.mode === 'real' ? 'real' : 'demo');
       } else {
         setSession(null);
+        setConnectionStatus('offline');
       }
     } catch {
       setConnectionStatus(
@@ -113,7 +126,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         ) ? 'demo' : 'offline'
       );
     }
-  }, [session]);
+  }, []);
 
   return (
     <AuthContext.Provider value={{ session, connectionStatus, login, loginSase, logout, refreshSession }}>

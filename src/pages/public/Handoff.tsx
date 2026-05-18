@@ -29,14 +29,15 @@ export default function Handoff() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ token: tokenParam }),
+          credentials: 'include',
           signal: AbortSignal.timeout(10000),
         });
 
-        const data: SessionResponse = await res.json();
+        const data = await res.json();
 
         if (cancelled) return;
 
-        if (data.valid && data.session) {
+        if (data.ok && data.session) {
           loginSase(data.session);
           navigate('/docente');
         } else {
@@ -46,7 +47,7 @@ export default function Handoff() {
         if (cancelled) return;
         setError(
           'No se pudo conectar con el servidor de validación. ' +
-          'Asegúrate de que el servidor Express esté corriendo (npm run dev).'
+          'Asegúrate de que el servidor esté accesible.'
         );
       }
     }

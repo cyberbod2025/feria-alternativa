@@ -48,7 +48,8 @@ export interface StandProgress {
 }
 
 export interface SessionResponse {
-  valid: boolean;
+  ok: boolean;
+  mode?: ConnectionStatus;
   session?: UserSession;
   error?: string;
 }

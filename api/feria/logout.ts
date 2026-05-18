@@ -7,6 +7,7 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'POST, OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type',
+      'Access-Control-Allow-Credentials': 'true',
     });
     res.end();
     return;
@@ -14,7 +15,7 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
 
   if (req.method !== 'POST') {
     res.writeHead(405, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ ok: false, error: 'Método no permitido' }));
+    res.end(JSON.stringify({ ok: false, error: 'Metodo no permitido' }));
     return;
   }
 
@@ -26,6 +27,7 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Credentials': 'true',
   });
 
   res.end(JSON.stringify({ ok: true }));

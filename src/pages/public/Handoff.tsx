@@ -33,11 +33,11 @@ export default function Handoff() {
           signal: AbortSignal.timeout(10000),
         });
 
-        const data = await res.json();
+        const data: SessionResponse = await res.json();
 
         if (cancelled) return;
 
-        if (data.ok && data.session) {
+        if (res.ok && data.ok && data.session) {
           loginSase(data.session);
           navigate('/docente');
         } else {
@@ -46,8 +46,8 @@ export default function Handoff() {
       } catch (err) {
         if (cancelled) return;
         setError(
-          'No se pudo conectar con el servidor de validación. ' +
-          'Asegúrate de que el servidor esté accesible.'
+          'No se pudo conectar con el servidor de validacion. ' +
+          'Asegurate de que el servidor este accesible.'
         );
       }
     }

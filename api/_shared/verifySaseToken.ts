@@ -7,7 +7,7 @@ export interface HandoffPayload {
   name?: string;
   lastName?: string;
   group?: string;
-  exp?: number;
+  exp: number;
   iat?: number;
 }
 
@@ -23,7 +23,7 @@ export function verifySaseToken(token: string): VerifyResult {
   try {
     const parts = token.split('.');
     if (parts.length !== 3) {
-      return { valid: false, error: 'Formato de token inválido' };
+      return { valid: false, error: 'Formato de token invalido' };
     }
 
     const [headerB64, payloadB64, signatureB64] = parts;
@@ -37,14 +37,18 @@ export function verifySaseToken(token: string): VerifyResult {
     }
 
     if (payload.module !== 'feria') {
-      return { valid: false, error: 'El token no corresponde al módulo Feria' };
+      return { valid: false, error: 'El token no corresponde al modulo Feria' };
     }
 
     if (!['teacher', 'admin', 'staff'].includes(payload.role)) {
       return { valid: false, error: 'Rol no autorizado para el panel docente' };
     }
 
-    if (payload.exp && payload.exp * 1000 < Date.now()) {
+    if (typeof payload.exp !== 'number') {
+      return { valid: false, error: 'Token sin expiracion (exp)' };
+    }
+
+    if (payload.exp * 1000 < Date.now()) {
       return { valid: false, error: 'El token ha expirado' };
     }
 
@@ -59,7 +63,7 @@ export function verifySaseToken(token: string): VerifyResult {
         .digest('base64url');
 
       if (signatureB64 !== expectedSignature) {
-        return { valid: false, error: 'Firma del token inválida' };
+        return { valid: false, error: 'Firma del token invalida' };
       }
     }
 

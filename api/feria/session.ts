@@ -1,6 +1,10 @@
 import { IncomingMessage, ServerResponse } from 'http';
 import { readSessionFromCookie } from '../_shared/feriaSession';
 
+function connectionMode() {
+  return process.env.FERIA_SHARED_SECRET ? 'real' : 'demo';
+}
+
 function json(res: ServerResponse, status: number, data: unknown) {
   const body = JSON.stringify(data);
   res.writeHead(status, {
@@ -8,6 +12,7 @@ function json(res: ServerResponse, status: number, data: unknown) {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'GET, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Credentials': 'true',
   });
   res.end(body);
 }
@@ -18,26 +23,27 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'GET, OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type',
+      'Access-Control-Allow-Credentials': 'true',
     });
     res.end();
     return;
   }
 
   if (req.method !== 'GET') {
-    json(res, 405, { ok: false, error: 'Método no permitido' });
+    json(res, 405, { ok: false, error: 'Metodo no permitido' });
     return;
   }
 
   const session = readSessionFromCookie(req.headers.cookie);
 
   if (!session) {
-    json(res, 401, { ok: false, mode: 'offline', error: 'No hay sesión activa' });
+    json(res, 401, { ok: false, mode: 'offline', error: 'No hay sesion activa' });
     return;
   }
 
   json(res, 200, {
     ok: true,
-    mode: process.env.FERIA_SESSION_SECRET ? 'real' : 'demo',
+    mode: connectionMode(),
     session: {
       sub: session.sub,
       role: session.role,

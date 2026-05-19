@@ -55,7 +55,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const data: SessionResponse = await res.json();
           if (data.ok && data.session) {
             setSession(data.session);
-            setConnectionStatus('real');
+            setConnectionStatus(data.mode === 'real' ? 'real' : 'demo');
             return;
           }
         }

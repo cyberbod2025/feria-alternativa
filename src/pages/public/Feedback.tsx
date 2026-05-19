@@ -4,6 +4,7 @@ import { Button } from '../../components/ui/button';
 import { MessageSquare, Star, ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+import { sendFeedback } from '../../lib/feedbackService';
 
 export default function Feedback() {
   const navigate = useNavigate();
@@ -20,27 +21,36 @@ export default function Feedback() {
     e.preventDefault();
     setLoading(true);
 
-    try {
-      const response = await fetch('/api/feedback', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
-      });
-      
-      if (!response.ok) throw new Error('Failed to submit feedback');
-      
+    const mensaje = formData.comments.trim() || "Evaluación sin comentario textual.";
+
+    const result = await sendFeedback({
+      app_origen: 'feria_alternativa',
+      tipo: 'sugerencia',
+      mensaje,
+      nombre: formData.role === 'student' ? 'Estudiante/Visitante' : 'Docente/Organizador',
+      rol: formData.role,
+      metadata: {
+        organization: formData.organization,
+        stands: formData.stands,
+        experience: formData.experience
+      }
+    });
+
+    if (result.success) {
       toast.success('¡Gracias por tu opinión!', {
-        description: 'Tus respuestas nos ayudarán a mejorar futuras ediciones de la Feria.'
+        description: 'Tu comentario ha sido registrado en el sistema institucional.'
       });
-      
       setTimeout(() => navigate(-1), 2000);
-    } catch (err) {
-      toast.error('Error al enviar', {
-        description: 'Hubo un problema al guardar tu feedback. Intenta de nuevo.'
+    } else if (result.fallback) {
+      toast.info('Feedback guardado localmente', {
+        description: 'No pudimos conectar con el servidor, pero tu opinión se guardó en este dispositivo.'
       });
-    } finally {
-      setLoading(false);
+      setTimeout(() => navigate(-1), 2000);
+    } else {
+      toast.error('Error al enviar el feedback');
     }
+
+    setLoading(false);
   };
 
   const StarRating = ({ value, onChange }: { value: number, onChange: (val: number) => void }) => {
@@ -76,10 +86,10 @@ export default function Feedback() {
             <div className="mx-auto w-16 h-16 bg-cyan-400/20 border border-cyan-400/30 rounded-2xl flex items-center justify-center mb-6 shadow-[0_0_30px_-5px_rgba(34,211,238,0.3)]">
               <MessageSquare className="w-8 h-8 text-cyan-400" />
             </div>
-            <CardTitle className="text-2xl font-black text-white uppercase tracking-tight">Feedback de la Feria</CardTitle>
-            <CardDescription className="text-slate-400 mt-2 font-medium">
-              Tu opinión es muy importante para nosotros. ¿Cómo calificarías tu experiencia en la Feria de Ciencias 2026?
-            </CardDescription>
+             <CardTitle className="text-2xl font-black text-white uppercase tracking-tight">Feedback del Circo Científico Escolar</CardTitle>
+             <CardDescription className="text-slate-400 mt-2 font-medium">
+               Tu opinión es muy importante para nosotros. ¿Cómo calificarías tu experiencia en el Circo Científico Escolar 2026?
+             </CardDescription>
           </CardHeader>
           
           <CardContent className="p-8">
@@ -153,7 +163,7 @@ export default function Feedback() {
                 className="w-full h-12 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-black tracking-wide uppercase shadow-[0_0_20px_-5px_rgba(34,211,238,0.5)] transition-all"
                 disabled={loading}
               >
-                {loading ? 'Enviando...' : 'Enviar Comentarios'}
+                {loading ? 'Enviando...' : 'Enviar Feedback'}
               </Button>
             </form>
           </CardContent>

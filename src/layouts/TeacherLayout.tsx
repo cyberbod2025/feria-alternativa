@@ -45,7 +45,7 @@ export default function TeacherLayout() {
               <LayoutDashboard className="w-5 h-5 text-white" />
             </div>
             <h1 className="text-xl font-heading font-black tracking-widest uppercase leading-tight line-clamp-2 text-[#F8FAFC] drop-shadow-md">
-              Feria de<br /><span className="text-[#22D3EE] drop-shadow-[0_0_10px_rgba(34,211,238,0.5)]">Ciencias</span>
+              Circo<br /><span className="text-[#22D3EE] drop-shadow-[0_0_10px_rgba(34,211,238,0.5)]">Científico Escolar</span>
             </h1>
           </div>
           <p className="text-[10px] text-[#22D3EE] font-bold px-1 tracking-[0.2em] uppercase mt-2 opacity-80">SASE-310 • Panel Org.</p>
@@ -130,4 +130,3 @@ export default function TeacherLayout() {
     </div>
   );
 }
-

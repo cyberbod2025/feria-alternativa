@@ -17,7 +17,6 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 function readStoredStudentSession(): UserSession | null {
   const saved = sessionStorage.getItem('feria_session');
   if (!saved) return null;
-
   try {
     const parsed = JSON.parse(saved) as Partial<UserSession>;
     if (
@@ -31,56 +30,61 @@ function readStoredStudentSession(): UserSession | null {
       return parsed as UserSession;
     }
   } catch { /* ignore corrupt data */ }
-
   sessionStorage.removeItem('feria_session');
   return null;
 }
 
-async function checkConnection(): Promise<ConnectionStatus> {
-  try {
-    const res = await fetch(`${API_BASE}/session`, {
-      credentials: 'include',
-      signal: AbortSignal.timeout(3000),
-    });
-    const data: SessionResponse = await res.json().catch(() => ({ ok: false }));
-    if (!res.ok || !data.ok) return data.mode === 'demo' ? 'demo' : 'offline';
-    return data.mode === 'real' ? 'real' : 'demo';
-  } catch {
-    const hasSupabase = Boolean(
-      (import.meta as any).env?.VITE_SUPABASE_URL &&
-      (import.meta as any).env?.VITE_SUPABASE_ANON_KEY
-    );
-    return hasSupabase ? 'demo' : 'offline';
-  }
-}
-
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [session, setSession] = useState<UserSession | null>(() => readStoredStudentSession());
+  const [session, setSession] = useState<UserSession | null>(null);
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('offline');
-
-  useEffect(() => {
-    checkConnection().then(setConnectionStatus);
-  }, []);
 
   // Handoff sessions are trusted only after the backend validates the HttpOnly cookie.
   useEffect(() => {
+    let cancelled = false;
+
     (async () => {
       try {
         const res = await fetch(`${API_BASE}/session`, {
           credentials: 'include',
           signal: AbortSignal.timeout(5000),
         });
-        const data: SessionResponse = await res.json();
-        if (res.ok && data.ok && data.session) {
-          setSession(data.session);
-          setConnectionStatus(data.mode === 'real' ? 'real' : 'demo');
+
+        if (cancelled) return;
+
+        if (res.ok) {
+          const data: SessionResponse = await res.json();
+          if (data.ok && data.session) {
+            setSession(data.session);
+            setConnectionStatus('real');
+            return;
+          }
+        }
+
+        // Backend explicitly rejects (401/403/invalid) → clear everything
+        setSession(null);
+        sessionStorage.removeItem('feria_session');
+        setConnectionStatus('offline');
+      } catch {
+        if (cancelled) return;
+
+        // Backend unreachable — fallback to sessionStorage for student only
+        const studentSession = readStoredStudentSession();
+        if (studentSession) {
+          setSession(studentSession);
+          setConnectionStatus('offline');
           return;
         }
-        setSession((current) => current?.role === 'student' ? current : null);
-      } catch {
-        setSession((current) => current?.role === 'student' ? current : null);
+
+        setConnectionStatus(
+          Boolean(
+            (import.meta as any).env?.VITE_SUPABASE_URL &&
+            (import.meta as any).env?.VITE_SUPABASE_ANON_KEY
+          ) ? 'demo' : 'offline'
+        );
       }
     })();
+
+    return () => { cancelled = true; };
   }, []);
 
   useEffect(() => {

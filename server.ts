@@ -3,7 +3,6 @@ import { createServer as createViteServer } from "vite";
 import { createServer } from "http";
 import { Server } from "socket.io";
 import path from "path";
-import fs from "fs";
 
 // Simple in-memory store for feedback
 const feedbackStore: any[] = [];
@@ -22,7 +21,8 @@ async function startServer() {
   app.use(express.json());
 
   // --- API Routes ---
-  
+
+  // Feedback (local dev only — in-memory)
   app.post("/api/feedback", (req, res) => {
     const feedback = req.body;
     feedback.timestamp = new Date().toISOString();
@@ -35,6 +35,13 @@ async function startServer() {
   app.get("/api/feedback", (req, res) => {
     res.json(feedbackStore);
   });
+
+  // --- Feria Auth Endpoints ---
+  // NOTA: El trust boundary principal son las funciones serverless en api/feria/*.
+  // Este servidor Express replica los mismos endpoints para desarrollo local.
+  // En producción (Vercel), api/feria/handoff, api/feria/session, api/feria/logout
+  // son servidos por Vercel Functions. La lógica compartida vive en api/_shared/.
+  // Cualquier cambio en la validación debe hacerse en api/_shared/verifySaseToken.ts.
 
   // --- Socket.io for Notifications ---
   io.on("connection", (socket) => {

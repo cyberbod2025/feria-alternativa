@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../store/AuthContext';
-import { Role } from '../../types';
+import { SessionResponse } from '../../types';
 import { Loader2, AlertCircle } from 'lucide-react';
 import { Button } from '../../components/ui/button';
+
+const API_BASE = '/api/feria';
 
 export default function Handoff() {
   const [searchParams] = useSearchParams();
@@ -12,79 +14,69 @@ export default function Handoff() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const token = searchParams.get('token');
+    const tokenParam = searchParams.get('sase_token') || searchParams.get('token');
 
-    if (!token) {
+    if (!tokenParam) {
       setError('Token de acceso no proporcionado.');
       return;
     }
 
-    try {
-      let payload;
+    let cancelled = false;
+
+    async function validateWithBackend() {
       try {
-        const base64Url = token.split('.')[1];
-        if(!base64Url) throw new Error("Invalid token format");
-        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-        const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
-            return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-        }).join(''));
-        payload = JSON.parse(jsonPayload);
-      } catch (e) {
-        console.error("Failed to decode token:", e);
-        setError('Token de acceso inválido o malformado.');
-        return;
+        const res = await fetch(`${API_BASE}/handoff`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token: tokenParam }),
+          credentials: 'include',
+          signal: AbortSignal.timeout(10000),
+        });
+
+        const data: SessionResponse = await res.json();
+
+        if (cancelled) return;
+
+        if (res.ok && data.ok && data.session) {
+          loginSase(data.session);
+          navigate('/docente');
+        } else {
+          setError(data.error || 'Token rechazado por el servidor.');
+        }
+      } catch (err) {
+        if (cancelled) return;
+        setError(
+          'No se pudo conectar con el servidor de validacion. ' +
+          'Asegurate de que el servidor este accesible.'
+        );
       }
-
-      const { role, module } = payload;
-
-      if (module !== 'feria') {
-        setError('El token provisto no es válido para este espectáculo.');
-        return;
-      }
-
-      if (!['teacher', 'admin', 'staff'].includes(role)) {
-         setError('No tienes pase de Director para acceder a este panel.');
-         return;
-      }
-
-      // Login
-      loginSase(token, role as Role);
-      navigate('/docente');
-
-    } catch (err) {
-      console.error(err);
-      setError('Error al validar el pase de entrada.');
     }
+
+    validateWithBackend();
+
+    return () => { cancelled = true; };
   }, [searchParams, loginSase, navigate]);
 
   if (error) {
     return (
-      <div className="min-h-screen bg-transparent flex items-center justify-center p-6">
-         <div className="max-w-md w-full bg-slate-900/60 backdrop-blur-3xl rounded-[2.5rem] shadow-2xl border-2 border-white/5 p-10 text-center space-y-6 relative overflow-hidden">
-          <div className="absolute top-0 left-0 w-full h-1 bg-circus-red"></div>
-          <div className="w-20 h-20 bg-circus-red/10 text-circus-red rounded-3xl flex items-center justify-center mx-auto mb-6 border-2 border-circus-red/30 shadow-[0_0_30px_rgba(239,68,68,0.2)]">
-             <AlertCircle className="w-10 h-10" />
+      <div className="min-h-screen bg-transparent flex items-center justify-center p-4">
+         <div className="max-w-md w-full bg-slate-900/60 backdrop-blur-2xl rounded-2xl shadow-xl border border-white/10 p-8 text-center space-y-4">
+          <div className="w-16 h-16 bg-rose-500/20 text-rose-400 rounded-full flex items-center justify-center mx-auto mb-4 border border-rose-500/30">
+             <AlertCircle className="w-8 h-8" />
           </div>
-          <h2 className="text-3xl font-black text-white uppercase tracking-tighter italic">Función <span className="text-circus-red">Privada</span></h2>
-          <p className="text-slate-500 font-bold uppercase tracking-widest text-[10px] leading-relaxed">{error}</p>
-          <Button onClick={() => navigate('/')} className="w-full mt-6 h-14 bg-white/5 border-2 border-white/10 text-white hover:bg-white/10 rounded-2xl font-black uppercase tracking-widest text-[11px]" variant="outline">
-            Volver a la Entrada
-          </Button>
+          <h2 className="text-2xl font-bold text-white uppercase tracking-tight">Acceso Denegado</h2>
+          <p className="text-slate-400">{error}</p>
+          <Button onClick={() => navigate('/')} className="w-full mt-4 border-white/10 text-white hover:bg-white/5" variant="outline">Volver al inicio</Button>
          </div>
       </div>
     );
   }
 
   return (
-     <div className="min-h-screen bg-transparent flex flex-col items-center justify-center p-6 text-center">
-        <div className="relative mb-8">
-           <div className="w-16 h-16 border-4 border-circus-cyan/20 border-t-circus-cyan rounded-full animate-spin"></div>
-           <div className="absolute inset-0 flex items-center justify-center">
-              <div className="w-8 h-8 bg-circus-cyan/10 rounded-full animate-pulse"></div>
-           </div>
-        </div>
-        <h2 className="text-2xl font-black text-white uppercase tracking-tighter italic">Validando <span className="text-circus-cyan">Credenciales</span></h2>
-        <p className="text-slate-500 font-bold uppercase tracking-[0.3em] text-[10px] mt-4 italic">Conectando con el Sistema SASE-310...</p>
+     <div className="min-h-screen bg-transparent flex flex-col items-center justify-center p-4">
+        <Loader2 className="w-10 h-10 text-cyan-400 animate-spin mb-4" />
+        <h2 className="text-xl font-bold text-white uppercase tracking-tight">Verificando acceso...</h2>
+        <p className="text-cyan-200/70 mt-2 font-medium">Conectando con SASE-310</p>
      </div>
   );
 }

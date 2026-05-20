@@ -45,16 +45,9 @@ La lógica compartida vive en:
 
 ## Formato del Token
 
-**Tipo:** JWT estándar (3 segmentos separados por `.`: `header.payload.signature`)
+**Tipo:** Token SASE de 2 segmentos separados por `.`: `base64url(payload).base64url(hmac-sha256)`
 
-### Header
-
-```json
-{
-  "alg": "HS256",
-  "typ": "JWT"
-}
-```
+No incluye header JWT. La firma es HMAC-SHA256 directamente sobre el payload base64url.
 
 ### Payload (claims)
 
@@ -84,9 +77,9 @@ La lógica compartida vive en:
 
 ### Signature
 
-- **Algoritmo:** HMAC-SHA256 (`HS256`)
-- **Clave secreta:** Configurada en Feria Alternativa como variable de entorno `FERIA_SHARED_SECRET`
-- **Payload firmado:** `base64url(header) + "." + base64url(payload)`
+- **Algoritmo:** HMAC-SHA256
+- **Clave secreta:** `FERIA_SHARED_SECRET` (debe tener el mismo valor que `SASE_SHARED_SECRET` en SASE)
+- **Payload firmado:** `base64url(payload)` (sin header, sin punto separator)
 
 ---
 
@@ -94,16 +87,17 @@ La lógica compartida vive en:
 
 El endpoint `POST /api/feria/handoff` (Vercel Function) ejecuta esta secuencia:
 
-1. **Formato:** ¿Tiene 3 segmentos? Si no → `401 "Formato de token inválido"`
-2. **Sub:** ¿`payload.sub` es un string no vacío? Si no → `401 "Token sin identificador de usuario (sub)"`
-3. **Module:** ¿`payload.module === "feria"`? Si no → `401 "El token no corresponde al módulo Feria"`
-4. **Role:** ¿`payload.role in ("teacher","admin","staff")`? Si no → `401 "Rol no autorizado para el panel docente"`
-5. **Exp:** ¿`payload.exp * 1000 > Date.now()`? Si falta o expiró → `401`
-6. **Iat:** ¿`payload.iat * 1000 <= Date.now()`? Si está en futuro → `401 "El token tiene un iat en el futuro"`
-7. **Signature:** Si `FERIA_SHARED_SECRET` está configurado, verifica HMAC-SHA256. Si no coincide → `401 "Firma del token inválida"`
-8. **Si no hay `FERIA_SHARED_SECRET` configurado**, la firma NO se verifica y el backend responde `mode: "demo"`.
+1. **Fail-closed:** Si no hay `FERIA_SHARED_SECRET` configurado → `401 "Configuración de seguridad incompleta"`. **No se acepta ningún token sin firma.** Producción requiere `FERIA_SHARED_SECRET` sí o sí. Las variables `FERIA_SHARED_SECRET` y `SASE_SHARED_SECRET` deben tener el mismo valor.
+2. **Formato:** ¿Tiene exactamente 2 segmentos (`base64url(payload).base64url(signature)`)? Si no → `401 "Formato de token inválido"`
+3. **Signature:** Verifica HMAC-SHA256 usando `FERIA_SHARED_SECRET` sobre `base64url(payload)`. Si no coincide → `401 "Firma del token inválida"`
+4. **Sub:** ¿`payload.sub` es un string no vacío? Si no → `401 "Token sin identificador de usuario (sub)"`
+5. **Module:** ¿`payload.module === "feria"`? Si no → `401 "El token no corresponde al módulo Feria"`
+6. **Role:** ¿`payload.role in ("teacher","admin","staff")`? Si no → `401 "Rol no autorizado para el panel docente"`
+7. **Exp:** ¿`payload.exp * 1000 > Date.now()`? Si falta o expiró → `401`
+8. **Iat:** ¿`payload.iat * 1000 <= Date.now()`? Si está en futuro → `401 "El token tiene un iat en el futuro"`
+9. **Group mapping:** Si `payload.group` está ausente pero `payload.groupId` presente, se asigna `group = groupId` (compatibilidad con SASE).
 
-`mode: "real"` significa que `FERIA_SHARED_SECRET` está configurado y la firma SASE se verifica. `FERIA_SESSION_SECRET` solo protege la cookie; no convierte el handoff en real.
+`mode: "real"` significa que `FERIA_SHARED_SECRET` está configurado y la firma SASE se verifica. `FERIA_SESSION_SECRET` solo protege la cookie; no convierte el handoff en real. Si falta cualquiera de los dos, el sistema no opera.
 
 ---
 
@@ -130,6 +124,7 @@ El endpoint `POST /api/feria/handoff` (Vercel Function) ejecuta esta secuencia:
 - La sesión viaja en una cookie `feria_session` HttpOnly, Secure, SameSite=Lax, cifrada con AES-256-GCM.
 - El cliente nunca recibe ni persiste un token interno de sesión docente.
 - El cliente solo restaura desde `sessionStorage` sesiones locales de alumno; las sesiones SASE se rehidratan desde `/api/feria/session`.
+- El token **no es un JWT estándar** (no tiene header). Es un formato propio de 2 partes: `base64url(payload).base64url(HMAC-SHA256)`. La verificación en Feria usa `api/_shared/verifySaseToken.ts` que replica exactamente el esquema de firma que SASE genera en `api/modules/lib.ts:buildToken()`.
 
 ### Error (401)
 
@@ -156,6 +151,7 @@ El endpoint `POST /api/feria/handoff` (Vercel Function) ejecuta esta secuencia:
 ## Notas
 
 - Feria Alternativa **nunca asigna roles en el cliente**. Todo token se valida contra el backend.
-- Sin `FERIA_SHARED_SECRET`, la validación de firma se salta solo para demo/desarrollo y el badge muestra "Demo".
-- Sin `FERIA_SESSION_SECRET`, se usa `FERIA_SHARED_SECRET` como fallback para cifrar la cookie.
+- **Fail-closed:** si `FERIA_SHARED_SECRET` no está configurado, el backend rechaza todo token con `500 "Configuración de seguridad incompleta"`. No se aceptan tokens sin firma ni en demo.
+- `FERIA_SESSION_SECRET` y `FERIA_SHARED_SECRET` son **ambos requeridos en producción**. Si falta alguno, el handoff y la gestión de sesión se deshabilitan.
+- Sin `FERIA_SESSION_SECRET`, se usa `FERIA_SHARED_SECRET` como fallback para cifrar la cookie. Si ambos faltan, `createSessionCookie` retorna `null` y `readSessionFromCookie` retorna `null`.
 - Los endpoints `/api/feria/*` son Vercel Functions. En desarrollo local, `server.ts` replica los mismos endpoints usando la lógica compartida en `api/_shared/`.

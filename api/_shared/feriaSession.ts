@@ -14,13 +14,20 @@ export interface SessionData {
   expiresAt: number;
 }
 
-function getKey(): Buffer {
-  const secret = process.env.FERIA_SESSION_SECRET || process.env.FERIA_SHARED_SECRET || '';
+function getSecret(): string | null {
+  return process.env.FERIA_SESSION_SECRET || process.env.FERIA_SHARED_SECRET || null;
+}
+
+function getKey(): Buffer | null {
+  const secret = getSecret();
+  if (!secret) return null;
   return crypto.scryptSync(secret, 'feria-session-salt', 32);
 }
 
-export function createSessionCookie(data: SessionData): string {
+export function createSessionCookie(data: SessionData): string | null {
   const key = getKey();
+  if (!key) return null;
+
   const iv = crypto.randomBytes(IV_LENGTH);
   const cipher = crypto.createCipheriv(ALGORITHM, key, iv);
 
@@ -38,6 +45,9 @@ export function createSessionCookie(data: SessionData): string {
 export function readSessionFromCookie(cookieHeader?: string): SessionData | null {
   if (!cookieHeader) return null;
 
+  const key = getKey();
+  if (!key) return null;
+
   const match = cookieHeader.match(new RegExp(`${COOKIE_NAME}=([^;]+)`));
   if (!match) return null;
 
@@ -45,7 +55,6 @@ export function readSessionFromCookie(cookieHeader?: string): SessionData | null
   if (parts.length !== 3) return null;
 
   try {
-    const key = getKey();
     const iv = Buffer.from(parts[0], 'hex');
     const tag = Buffer.from(parts[1], 'hex');
     const encrypted = parts[2];

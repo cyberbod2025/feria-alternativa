@@ -72,6 +72,10 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
   };
 
   const cookie = createSessionCookie(session);
+  if (!cookie) {
+    json(res, 500, { ok: false, error: 'Configuracion de seguridad incompleta' });
+    return;
+  }
 
   res.writeHead(200, {
     'Content-Type': 'application/json',
